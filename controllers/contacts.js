@@ -18,15 +18,22 @@ async function getContacts(req, res, next) {
   }
 }
 
+const mongoose = require("mongoose");
+
 async function getContact(req, res, next) {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid ID" });
+  }
+
   const contact = await Contact.findById(id);
 
-  if (contact === null) {
+  if (!contact) {
     return res.status(404).send({ message: "Not found" });
   }
 
-  res.send(contact).status(200);
+  res.status(200).send(contact);
 }
 
 async function createContact(req, res, next) {
@@ -44,7 +51,6 @@ async function createContact(req, res, next) {
     };
 
     const result = await Contact.create(contact);
-    console.log(result);
     res.status(201).send(result);
   } catch (error) {
     res.status(500).send({ message: "Internal Server Error" });

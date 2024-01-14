@@ -53,12 +53,16 @@ async function createContact(req, res, next) {
     const result = await Contact.create(contact);
     res.status(201).send(result);
   } catch (error) {
-    res.status(500).send({ message: "Internal Server Error" });
+    res.status(400).send({ message: "Missing body" });
   }
 }
 
 async function deleteContact(req, res, next) {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid ID" });
+  }
 
   try {
     const result = await Contact.findByIdAndDelete(id);
@@ -73,6 +77,10 @@ async function deleteContact(req, res, next) {
 
 async function updateContact(req, res, next) {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid ID" });
+  }
 
   try {
     const validation = contactSchema.validate(req.body);

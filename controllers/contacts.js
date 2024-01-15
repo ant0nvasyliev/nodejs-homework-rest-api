@@ -84,9 +84,15 @@ async function updateContact(req, res, next) {
 
   try {
     const validation = contactSchema.validate(req.body);
+
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).send({ message: "missing fields" });
+    }
+
     if (validation.error) {
       return res.status(400).send(validation.error.message);
     }
+
     const contact = {
       id: req.body.id,
       name: req.body.name,

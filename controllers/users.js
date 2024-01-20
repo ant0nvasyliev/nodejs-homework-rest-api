@@ -37,6 +37,11 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).send({ message: "Missing fields" });
+  }
+
   const validation = userSchema.validate(req.body);
   if (validation.error) {
     return res.status(400).send(validation.error.message);

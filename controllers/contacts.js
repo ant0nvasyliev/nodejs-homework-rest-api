@@ -52,6 +52,10 @@ async function createContact(req, res, next) {
     if (validation.error) {
       return res.status(400).send(validation.error.message);
     }
+    const { name, phone } = req.body;
+    if (!name || !phone) {
+      return res.status(400).send({ message: "Missing fields" });
+    }
     const contact = {
       id: uuidv4(),
       name: req.body.name,
@@ -133,6 +137,9 @@ async function updateContact(req, res, next) {
 async function updateStatusContact(req, res, next) {
   const { id } = req.params;
   const userId = req.user.id;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid ID" });
+  }
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).send("message: missing field favorite");
   }

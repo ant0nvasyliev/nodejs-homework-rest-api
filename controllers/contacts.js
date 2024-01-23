@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require("uuid");
 const Joi = require("joi");
 
+const mongoose = require("mongoose");
+
 const contactSchema = Joi.object({
   name: Joi.string().min(2).max(30),
   email: Joi.string().email(),
@@ -11,29 +13,37 @@ const Contact = require("../models/contacts");
 
 async function getContacts(req, res, next) {
   try {
-    const contacts = await Contact.find();
+    const userId = req.user.id;
+    const contacts = await Contact.find({ ownerId: userId });
     res.send(contacts).status(200);
   } catch (error) {
     next(error);
   }
 }
 
-const mongoose = require("mongoose");
-
 async function getContact(req, res, next) {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).send({ message: "Invalid ID" });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid ID" });
+    }
+
+    const contact = await Contact.findById(id);
+
+    if (!contact) {
+      return res.status(404).send({ message: "Not found" });
+    }
+
+    if (contact.ownerId.toString() !== userId) {
+      return res.status(404).send({ message: "Not found" });
+    }
+
+    res.status(200).send(contact);
+  } catch (error) {
+    next(error);
   }
-
-  const contact = await Contact.findById(id);
-
-  if (!contact) {
-    return res.status(404).send({ message: "Not found" });
-  }
-
-  res.status(200).send(contact);
 }
 
 async function createContact(req, res, next) {
@@ -42,12 +52,17 @@ async function createContact(req, res, next) {
     if (validation.error) {
       return res.status(400).send(validation.error.message);
     }
+    const { name, phone } = req.body;
+    if (!name || !phone) {
+      return res.status(400).send({ message: "Missing fields" });
+    }
     const contact = {
       id: uuidv4(),
       name: req.body.name,
       email: req.body.email,
       phone: req.body.phone,
       favorite: req.body.favorite,
+      ownerId: req.user.id,
     };
 
     const result = await Contact.create(contact);
@@ -59,6 +74,7 @@ async function createContact(req, res, next) {
 
 async function deleteContact(req, res, next) {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).send({ message: "Invalid ID" });
@@ -67,7 +83,10 @@ async function deleteContact(req, res, next) {
   try {
     const result = await Contact.findByIdAndDelete(id);
     if (result === null) {
-      return res.status(404).send("Contact not found");
+      return res.status(404).send({ message: "Not found" });
+    }
+    if (result.ownerId.toString() !== userId) {
+      return res.status(404).send({ message: "Not found" });
     }
     res.send(`Deleted Contact id: ${id}`);
   } catch (error) {
@@ -77,6 +96,7 @@ async function deleteContact(req, res, next) {
 
 async function updateContact(req, res, next) {
   const { id } = req.params;
+  const userId = req.user.id;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).send({ message: "Invalid ID" });
@@ -103,7 +123,10 @@ async function updateContact(req, res, next) {
 
     const result = await Contact.findByIdAndUpdate(id, contact, { new: true });
     if (result === null) {
-      return res.status(404).send("Contact not found");
+      return res.status(404).send({ message: "Not found" });
+    }
+    if (result.ownerId.toString() !== userId) {
+      return res.status(404).send({ message: "Not found" });
     }
     res.send(result).status(200);
   } catch (error) {
@@ -113,6 +136,10 @@ async function updateContact(req, res, next) {
 
 async function updateStatusContact(req, res, next) {
   const { id } = req.params;
+  const userId = req.user.id;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid ID" });
+  }
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).send("message: missing field favorite");
   }
@@ -124,6 +151,9 @@ async function updateStatusContact(req, res, next) {
     );
     if (result === null) {
       return res.status(404).send("Contact not found");
+    }
+    if (result.ownerId.toString() !== userId) {
+      return res.status(404).send({ message: "Not found" });
     }
     res.send(result);
   } catch (error) {

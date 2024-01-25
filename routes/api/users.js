@@ -1,17 +1,15 @@
-const { Router, json } = require("express");
-const AuthController = require("../../controllers/users");
-
-const router = Router();
-const jsonParser = json();
+const express = require("express");
 
 const authMiddleware = require("../../middleware/authMiddleware");
+const UserController = require("../../controllers/users");
+const uploadMiddleware = require("../../middleware/upload");
+const router = express.Router();
 
-router.post("/register", jsonParser, AuthController.register);
-
-router.post("/login", jsonParser, AuthController.login);
-
-router.post("/logout",  jsonParser, authMiddleware, AuthController.logout);
-
-router.get("/current", jsonParser, authMiddleware, AuthController.current);
+router.patch(
+  "/avatars",
+  authMiddleware,
+  uploadMiddleware.single("avatar"),
+  UserController.uploadAvatar
+);
 
 module.exports = router;

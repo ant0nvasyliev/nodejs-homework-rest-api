@@ -2,6 +2,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/users");
 const gravatar = require("gravatar");
+const sendEmail = require("../helpers/sendEmail");
+const crypto = require("node:crypto");
+const verifyToken = crypto.randomUUID();
 
 const Joi = require("joi");
 
@@ -25,8 +28,18 @@ async function register(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const avatarURL = gravatar.url(email);
+
+    sendEmail({
+      to: "anton12vasyliev@gmail.com",
+      from: "anton12vasyliev@gmail.com",
+      subject: "Hello bulo4ka",
+      html: `To confirm your registration please click on the <a href="http://localhost:3000/api/users/verify/${verifyToken}">link</a>`,
+      text: `To confirm your registration please click on the <a href="http://localhost:3000/api/users/verify/${verifyToken}">link</a>`,
+    });
+
     const result = await User.create({
       email,
+      verifyToken,
       password: passwordHash,
       avatarURL,
     });
@@ -63,6 +76,10 @@ async function login(req, res, next) {
     const isMatch = await bcrypt.compare(password, user.password);
     if (isMatch === false) {
       return res.status(401).send({ message: "Email or password is wrong" });
+    }
+
+    if (user.verify === false) {
+      return res.status(401).send({ message: "Your account is not verified" });
     }
 
     const token = jwt.sign(
@@ -102,9 +119,53 @@ async function current(req, res) {
   res.json({ email, subscription });
 }
 
+async function verify(req, res, next) {
+  const { token } = req.params;
+  try {
+    const user = await User.findOne({ verifyToken: token });
+
+    if (user === null) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    await User.findByIdAndUpdate(user._id, { verify: true, verifyToken: null });
+    res.send({ message: "Verification successful" });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function resendVerify(req, res, next) {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ message: "User not found" });
+    }
+    if (user.verify) {
+      return res
+        .status(400)
+        .send({ message: "Verification has already been passed" });
+    }
+    await sendEmail({
+      to: "anton12vasyliev@gmail.com",
+      from: "anton12vasyliev@gmail.com",
+      subject: "Hello bulo4ka",
+      html: `To confirm your registration please click on the <a href="http://localhost:3000/api/users/verify/${user.verifyToken}">link</a>`,
+      text: `To confirm your registration please click on the <a href="http://localhost:3000/api/users/verify/${user.verifyToken}">link</a>`,
+    });
+    return res.status(200).send({ message: "Verification email sent" });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   register,
   login,
   logout,
   current,
+  verify,
+  resendVerify,
 };

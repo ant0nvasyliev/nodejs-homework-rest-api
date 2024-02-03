@@ -14,6 +14,8 @@ router.post("/logout", jsonParser, authMiddleware, AuthController.logout);
 
 router.get("/current", jsonParser, authMiddleware, AuthController.current);
 
+router.get("/verify/:token", AuthController.verify);
 
+router.post("/verify", jsonParser, AuthController.resendVerify);
 
 module.exports = router;
